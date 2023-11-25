@@ -1,20 +1,23 @@
-const express = require("express");
-const { Pool } = require("pg");
-const app = express();
 const port = process.env.PORT || 3001;
-const cors = require("cors");
-const bodyParser = require("body-parser");
+const express = require("express");
+const app = express();
+app.use(express.json());
 
+const dotenv = require("dotenv");
+dotenv.config();
+
+const cors = require("cors");
+app.use(cors());
+
+const { Pool } = require("pg");
 const pool = new Pool({
   user: "long",
-  host: "localhost",
-  database: "microservices_demo",
-  password: "long200801",
+  host: "dpg-clgq9358td7s73bk4cmg-a.singapore-postgres.render.com",
+  database: "microservices_demo_z55d",
+  password: "y1xn4rMXpVR5NMIWxWmrPkwY8yaQd3ys",
   port: 5432,
+  ssl: { rejectUnauthorized: false },
 });
-
-app.use(cors());
-app.use(bodyParser.json());
 
 app.get("/products", async (req, res) => {
   try {
