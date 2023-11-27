@@ -19,6 +19,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+//product
 app.get("/products", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM products");
@@ -71,6 +72,62 @@ app.put("/products/:id", async (req, res) => {
     res.json({ message: "Cập nhật thông tin sản phẩm thành công" });
   } catch (error) {
     console.error("Lỗi cập nhật thông tin sản phẩm:", error);
+  }
+});
+
+//user
+app.get("/users", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM users");
+    const data = result.rows;
+    res.json(data);
+  } catch (error) {
+    console.error("Lỗi truy vấn cơ sở dữ liệu:", error);
+  }
+});
+
+app.post("/users", async (req, res) => {
+  const { username, password, role } = req.body;
+
+  try {
+    const result = await pool.query(
+      "INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING *",
+      [username, password, role]
+    );
+
+    const newUser = result.rows[0];
+    res.json({ message: "Tạo người dùng thành công", user: newUser });
+  } catch (error) {
+    console.error("Lỗi tạo mới người dùng:", error);
+  }
+});
+
+app.delete("/users/:id", async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const result = await pool.query("DELETE FROM users WHERE id = $1", [
+      userId,
+    ]);
+    res.json({ message: "Xoá người dùng thành công" });
+  } catch (error) {
+    console.error("Lỗi xoá người dùng từ cơ sở dữ liệu:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.put("/users/:id", async (req, res) => {
+  const userId = req.params.id;
+  const { password } = req.body;
+
+  try {
+    const result = await pool.query(
+      "UPDATE users SET password = $1 WHERE id = $2",
+      [password, userId]
+    );
+    res.json({ message: "Cập nhật thông tin người dùng thành công" });
+  } catch (error) {
+    console.error("Lỗi cập nhật thông tin người dùng:", error);
   }
 });
 
