@@ -12,122 +12,80 @@ app.use(cors());
 const { Pool } = require("pg");
 const pool = new Pool({
   user: "long",
-  host: "dpg-clgq9358td7s73bk4cmg-a.singapore-postgres.render.com",
-  database: "microservices_demo_z55d",
-  password: "y1xn4rMXpVR5NMIWxWmrPkwY8yaQd3ys",
+  host: "dpg-cqot672j1k6c73d89ml0-a.singapore-postgres.render.com",
+  database: "microservices_demo_vnn9",
+  password: "E3dO6I2cov4lbpZ16ahBTcSeF7yGhY2s",
   port: 5432,
   ssl: { rejectUnauthorized: false },
 });
 
-//product
-app.get("/products", async (req, res) => {
+app.get('/expenses', async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM products");
-    const data = result.rows;
-    res.json(data);
-  } catch (error) {
-    console.error("Lỗi truy vấn cơ sở dữ liệu:", error);
+    const result = await pool.query('SELECT * FROM expense');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 });
 
-app.post("/products", async (req, res) => {
-  const { name, price } = req.body;
-
+app.get('/expenses/:id', async (req, res) => {
   try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM expense WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).send('Expense not found');
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+app.post('/expenses', async (req, res) => {
+  try {
+    const { userSpend, total, name, date } = req.body;
     const result = await pool.query(
-      "INSERT INTO products (name, price) VALUES ($1, $2) RETURNING *",
-      [name, price]
+      'INSERT INTO expense (userSpend, total, name, date) VALUES ($1, $2, $3, $4) RETURNING *',
+      [userSpend, total, name, date]
     );
-
-    const newProduct = result.rows[0];
-    res.json({ message: "Tạo mới sản phẩm thành công", product: newProduct });
-  } catch (error) {
-    console.error("Lỗi tạo mới sản phẩm:", error);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 });
 
-app.delete("/products/:id", async (req, res) => {
-  const productId = req.params.id;
-
+app.put('/expenses/:id', async (req, res) => {
   try {
-    const result = await pool.query("DELETE FROM products WHERE id = $1", [
-      productId,
-    ]);
-    res.json({ message: "Xoá sản phẩm thành công" });
-  } catch (error) {
-    console.error("Lỗi xoá sản phẩm từ cơ sở dữ liệu:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.put("/products/:id", async (req, res) => {
-  const productId = req.params.id;
-  const { price } = req.body;
-
-  try {
+    const { id } = req.params;
+    const { userSpend, total, name, date } = req.body;
     const result = await pool.query(
-      "UPDATE products SET price = $1 WHERE id = $2",
-      [price, productId]
+      'UPDATE expense SET userSpend = $1, total = $2, name = $3, date = $4 WHERE id = $5 RETURNING *',
+      [userSpend, total, name, date, id]
     );
-    res.json({ message: "Cập nhật thông tin sản phẩm thành công" });
-  } catch (error) {
-    console.error("Lỗi cập nhật thông tin sản phẩm:", error);
+    if (result.rows.length === 0) {
+      return res.status(404).send('Expense not found');
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 });
 
-//user
-app.get("/users", async (req, res) => {
+app.delete('/expenses/:id', async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM users");
-    const data = result.rows;
-    res.json(data);
-  } catch (error) {
-    console.error("Lỗi truy vấn cơ sở dữ liệu:", error);
-  }
-});
-
-app.post("/users", async (req, res) => {
-  const { username, password, role } = req.body;
-
-  try {
-    const result = await pool.query(
-      "INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING *",
-      [username, password, role]
-    );
-
-    const newUser = result.rows[0];
-    res.json({ message: "Tạo người dùng thành công", user: newUser });
-  } catch (error) {
-    console.error("Lỗi tạo mới người dùng:", error);
-  }
-});
-
-app.delete("/users/:id", async (req, res) => {
-  const userId = req.params.id;
-
-  try {
-    const result = await pool.query("DELETE FROM users WHERE id = $1", [
-      userId,
-    ]);
-    res.json({ message: "Xoá người dùng thành công" });
-  } catch (error) {
-    console.error("Lỗi xoá người dùng từ cơ sở dữ liệu:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.put("/users/:id", async (req, res) => {
-  const userId = req.params.id;
-  const { password } = req.body;
-
-  try {
-    const result = await pool.query(
-      "UPDATE users SET password = $1 WHERE id = $2",
-      [password, userId]
-    );
-    res.json({ message: "Cập nhật thông tin người dùng thành công" });
-  } catch (error) {
-    console.error("Lỗi cập nhật thông tin người dùng:", error);
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM expense WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).send('Expense not found');
+    }
+    res.json({ message: 'Expense deleted' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 });
 
