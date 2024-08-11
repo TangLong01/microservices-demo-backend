@@ -21,7 +21,22 @@ const pool = new Pool({
 
 app.get("/expenses", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM expense");
+    const { _start, _end } = req.query;
+    const start = parseInt(_start, 10) || 0;
+    const end = parseInt(_end, 10) || 10;
+    const limit = end - start;
+
+    const totalResult = await pool.query("SELECT COUNT(*) FROM expense");
+    const total = parseInt(totalResult.rows[0].count, 10);
+
+    const result = await pool.query(
+      "SELECT * FROM expense ORDER BY id LIMIT $1 OFFSET $2",
+      [limit, start]
+    );
+
+    res.set("Content-Range", `expenses ${start}-${end}/${total}`);
+    res.set("Access-Control-Expose-Headers", "Content-Range");
+
     res.json(result.rows);
   } catch (err) {
     console.error(err.message);
