@@ -62,10 +62,10 @@ app.get("/expenses/:id", async (req, res) => {
 
 app.post("/expenses", async (req, res) => {
   try {
-    const { userSpend, total, description, date } = req.body;
+    const { name, total, description, date } = req.body;
     const result = await pool.query(
-      "INSERT INTO expense (userSpend, total, description, date) VALUES ($1, $2, $3, $4) RETURNING *",
-      [userSpend, total, description, date]
+      "INSERT INTO expense (name, total, description, date) VALUES ($1, $2, $3, $4) RETURNING *",
+      [name, total, description, date]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -77,10 +77,10 @@ app.post("/expenses", async (req, res) => {
 app.put("/expenses/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { userSpend, total, description, date } = req.body;
+    const { name, total, description, date } = req.body;
     const result = await pool.query(
-      "UPDATE expense SET userSpend = $1, total = $2, description = $3, date = $4 WHERE id = $5 RETURNING *",
-      [userSpend, total, description, date, id]
+      "UPDATE expense SET name = $1, total = $2, description = $3, date = $4 WHERE id = $5 RETURNING *",
+      [name, total, description, date, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).send("Expense not found");
