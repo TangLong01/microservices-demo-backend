@@ -7,6 +7,9 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const cors = require("cors");
+app.use(cors({
+  exposedHeaders: ['X-Total-Count']
+}));
 app.use(cors());
 
 const { Pool } = require("pg");
@@ -21,21 +24,57 @@ const pool = new Pool({
 
 app.get("/expenses", async (req, res) => {
   try {
-    const { _start, _end } = req.query;
-    const start = parseInt(_start, 10) || 0;
-    const end = parseInt(_end, 10) || 10;
-    const limit = end - start;
+    const { description, startDate, endDate, _sort, _order, _start, _end } = req.query;
 
-    const totalResult = await pool.query("SELECT COUNT(*) FROM expense");
-    const total = parseInt(totalResult.rows[0].count, 10);
+    let query = "SELECT * FROM expense";
+    const queryParams = [];
+    
+    let conditions = [];
+    if (description) {
+      conditions.push("description ILIKE $" + (conditions.length + 1));
+      queryParams.push(`%${description}%`);
+    }
 
-    const result = await pool.query(
-      "SELECT * FROM expense ORDER BY id LIMIT $1 OFFSET $2",
-      [limit, start]
-    );
+    if (startDate && endDate) {
+      conditions.push("date BETWEEN $" + (conditions.length + 1) + " AND $" + (conditions.length + 2));
+      queryParams.push(startDate);
+      queryParams.push(endDate);
+    } else if (startDate) {
+      conditions.push("date >= $" + (conditions.length + 1));
+      queryParams.push(startDate);
+    } else if (endDate) {
+      conditions.push("date <= $" + (conditions.length + 1));
+      queryParams.push(endDate);
+    }
 
-    res.set("Content-Range", `expenses ${start}-${end}/${total}`);
-    res.set("Access-Control-Expose-Headers", "Content-Range");
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+
+    const defaultSortField = "date";
+    const defaultSortOrder = "DESC";
+
+    const sortField = _sort || defaultSortField;
+    const sortOrder = _order || defaultSortOrder;
+    query += ` ORDER BY ${sortField} ${sortOrder}`;
+
+    const startIndex = parseInt(_start, 10) || 0;
+    const endIndex = parseInt(_end, 10) || 10;
+
+    const limit = endIndex - startIndex;
+    const offset = startIndex;
+
+    query += ` LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    queryParams.push(limit, offset);
+
+    const result = await pool.query(query, queryParams);
+
+    const countQuery = "SELECT COUNT(*) FROM expense";
+    const countResult = await pool.query(countQuery);
+    const totalRecords = countResult.rows[0].count;
+
+    res.set("X-Total-Count", totalRecords.toString());
+    res.set("Access-Control-Expose-Headers", "X-Total-Count");
 
     res.json(result.rows);
   } catch (err) {
@@ -62,10 +101,10 @@ app.get("/expenses/:id", async (req, res) => {
 
 app.post("/expenses", async (req, res) => {
   try {
-    const { name, total, description, date } = req.body;
+    const { total, description, date } = req.body;
     const result = await pool.query(
-      "INSERT INTO expense (name, total, description, date) VALUES ($1, $2, $3, $4) RETURNING *",
-      [name, total, description, date]
+      "INSERT INTO expense (total, description, date) VALUES ($1, $2, $3) RETURNING *",
+      [total, description, date]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -77,10 +116,10 @@ app.post("/expenses", async (req, res) => {
 app.put("/expenses/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, total, description, date } = req.body;
+    const { total, description, date } = req.body;
     const result = await pool.query(
-      "UPDATE expense SET name = $1, total = $2, description = $3, date = $4 WHERE id = $5 RETURNING *",
-      [name, total, description, date, id]
+      "UPDATE expense SET total = $1, description = $2, date = $3 WHERE id = $4 RETURNING *",
+      [total, description, date, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).send("Expense not found");
